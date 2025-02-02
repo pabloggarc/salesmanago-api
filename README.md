@@ -35,7 +35,7 @@ requests
 
 ## Services
 
-Currently client service is supported PARTIALLY, event service is supported only for inserts.
+Currently client service is supported PARTIALLY, event service is supported for inserts and deletes.
 I've needed only a few methods and those were implemented.
 
 `SalesManagoClientService` handles:
@@ -44,11 +44,14 @@ I've needed only a few methods and those were implemented.
 * upsert
 * update
 * delete
+* check
+* export
 
 `SalesManagoClientService` handles:
 
 * addContactExtEvent
 * batchAddContactExtEvent
+* deleteContactExtEvent
 
 
 ## Usage of Client Service

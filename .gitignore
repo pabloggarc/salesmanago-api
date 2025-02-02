@@ -131,3 +131,6 @@ dmypy.json
 
 
 pypi.token
+
+
+*.DS_Store

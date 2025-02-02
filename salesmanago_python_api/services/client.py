@@ -25,7 +25,9 @@ class SalesManagoClientService:
         'insert': '/api/contact/insert',
         'upsert': '/api/contact/upsert',
         'update': '/api/contact/update',
-        'delete': '/api/contact/delete'
+        'delete': '/api/contact/delete', 
+        'check': '/api/contact/hasContact', 
+        'export': '/api/contact/list'
     }
 
     def __init__(self, apiKey, clientId, apiSecret, serverDomain):
@@ -221,3 +223,86 @@ class SalesManagoClientService:
         }))
 
         return response
+    
+    def contact_exists(self, clientData):
+        if not isinstance(clientData, self.ClientData):
+            raise TypeError('insert accepts only SalesManagoClientData instances')
+
+        payload = self._authData.requestAuthDict
+        payload.update({
+            "email": clientData.email, 
+            "owner": clientData.owner
+        })
+
+        logger.debug(json.dumps({
+            'action': 'contact_exists',
+            'payload': payload
+        }))
+
+        url = f'https://{self.serverDomain}{self.ACTION_URLS["check"]}'
+
+        request = requests.Request(
+            method = 'POST',
+            url = url,
+            data = json.dumps(payload)
+        )
+        prepared_request = self._requestsSession.prepare_request(request)
+        response = self._requestsSession.send(prepared_request, timeout=self.API_REQUEST_DEFAULT_TIMEOUT)
+
+        logger.debug(json.dumps({
+            'action': 'contact_exists_response',
+            'request_body': prepared_request.body,
+            'response_status': response.status_code,
+            'response_json': response.json()
+        }))
+
+        if response.status_code == 200:
+            response_json = response.json()
+            return response_json.get('result', False)
+        else:
+            raise Exception(f"Error al verificar el contacto: {response.status_code}, {response.text}")
+
+    def export(self, clientData):
+        if type(clientData) is not type([]):
+            raise TypeError('insert accepts only an array of SalesManagoClientData instances')
+        
+        if len(clientData) > 50: 
+            raise ValueError("No se admiten más de 50 contactos en una sola exportación")
+        
+        if len(set([client.owner for client in clientData])) > 1:
+            raise ValueError("Todos los contactos deben tener el mismo owner")
+
+        payload = self._authData.requestAuthDict
+        payload.update({
+            "email": [client.email for client in clientData], 
+            "owner": clientData[0].owner
+        })
+
+        logger.debug(json.dumps({
+            'action': 'export',
+            'payload': payload
+        }))
+
+        url = f'https://{self.serverDomain}{self.ACTION_URLS["export"]}'
+
+        request = requests.Request(
+            method = 'POST',
+            url = url,
+            data = json.dumps(payload)
+        )
+
+        prepared_request = self._requestsSession.prepare_request(request)
+        response = self._requestsSession.send(prepared_request, timeout=self.API_REQUEST_DEFAULT_TIMEOUT)
+
+        logger.debug(json.dumps({
+            'action': 'contact_exists_response',
+            'request_body': prepared_request.body,
+            'response_status': response.status_code,
+            'response_json': response.json()
+        }))
+
+        if response.status_code == 200:
+            response_json = response.json()
+            return response_json
+        else:
+            raise Exception(f"Error al verificar el contacto: {response.status_code}, {response.text}")

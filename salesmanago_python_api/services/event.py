@@ -6,6 +6,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from salesmanago_python_api.data.auth import SalesManagoAuthData
 from salesmanago_python_api.data.event import SalesManagoEventData
+from salesmanago_python_api.data.event_remove import SalesManagoDeleteEventData
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,8 @@ class SalesManagoEventService:
 
     ACTION_URLS = {
         'addContactExtEvent': '/api/v2/contact/addContactExtEvent',
-        'batchAddContactExtEvent': '/api/contact/batchAddContactExtEvent'
+        'batchAddContactExtEvent': '/api/contact/batchAddContactExtEvent',
+        'deleteContactExtEvent': '/api/v2/contact/deleteContactExtEvent'
     }
 
     def __init__(self, apiKey, clientId, apiSecret, serverDomain):
@@ -83,15 +85,26 @@ class SalesManagoEventService:
     @property
     def EventData(self):
         return SalesManagoEventData
-    
+
+    @property
+    def DeleteEventData(self):
+        return SalesManagoDeleteEventData
+
     def createEventData(self, event_data):
         logger.debug(json.dumps({
-            'action': 'createClientData',
+            'action': 'createEventData',
             'client_data': event_data
         }))
 
         return self.EventData(**event_data)
-    
+
+    def createDeleteEventData(self, event_data):
+        logger.debug(json.dumps({
+            'action': 'createDeleteEventData',
+            'client_data': event_data
+        }))
+        return self.DeleteEventData(**event_data)
+
     def _generate_payload(self, eventData, request_type):
         payload = self._authData.requestAuthDict
         processed = False
@@ -127,6 +140,12 @@ class SalesManagoEventService:
 
             processed = True
 
+        if request_type == 'deleteContactExtEvent':
+            if not isinstance(eventData, self.DeleteEventData):
+                raise TypeError('deleteContactExtEvent payload accepts only SalesManagoDeleteEventData instance, call .DeleteEventData or .createDeleteEventData')
+            payload.update(eventData.requestDict())
+            processed = True
+
         logger.debug(json.dumps({
             'action': '_generate_payload',
             'payload': payload
@@ -151,7 +170,27 @@ class SalesManagoEventService:
             'request_body': request.body,
             'response_status': response.status_code,
             'response_json': response.json(),
-            'eventData': eventData.requestDict('addContactExtEvent')
+            'eventData': eventData.requestDict()
+        }))
+
+        return response
+
+    def deleteContactExtEvent(self, eventData):
+        if not isinstance(eventData, self.DeleteEventData):
+            raise TypeError('deleteContactExtEvent accepts only SalesManagoDeleteEventData instances')
+
+        request = self._generate_request(eventData, 'deleteContactExtEvent')
+        response = self._requestsSession.send(
+            request,
+            timeout=self.API_REQUEST_DEFAULT_TIMEOUT
+        )
+
+        logger.debug(json.dumps({
+            'action': 'deleteContactExtEvent',
+            'request_body': request.body,
+            'response_status': response.status_code,
+            'response_json': response.json(),
+            'eventData': eventData.requestDict()
         }))
 
         return response
@@ -186,9 +225,8 @@ class SalesManagoEventService:
         )
 
         return self._requestsSession.prepare_request(rq)
-    
-    def batchAddContactExtEvent(self, eventData):
 
+    def batchAddContactExtEvent(self, eventData):
         if type(eventData) is not type([]):
             raise TypeError('batchAddContactExtEvent accepts only array of SalesManagoEventData instances')
         
